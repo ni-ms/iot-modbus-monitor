@@ -66,8 +66,11 @@ async def create_db_and_tables():
 c = ModbusClient(host=config_parameters.HOST_IP, port=config_parameters.PORT, auto_open=True)
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+script_dir = os.path.dirname(__file__)
+st_abs_file_path = os.path.join(script_dir, "static/")
+template_dir = os.path.join(script_dir, "templates")
+app.mount("/static", StaticFiles(directory=st_abs_file_path), name="static")
+templates = Jinja2Templates(directory=template_dir)
 
 
 # Background Modbus Polling
@@ -123,12 +126,14 @@ async def read_modbus_registers():
     loop = asyncio.get_event_loop()
     try:
         # Offload the blocking I/O call to a separate thread
-        regs_l = await loop.run_in_executor(executor, c.read_holding_registers, config_parameters.REG_ADDR, config_parameters.REG_NB)
+        regs_l = await loop.run_in_executor(executor, c.read_holding_registers, config_parameters.REG_ADDR,
+                                            config_parameters.REG_NB)
         print("Registers read:", regs_l)  # Log the raw register values
         return regs_l
     except Exception as e:
         print(f"Error reading Modbus registers: {e}")
         return
+
 
 async def modbus_client():
     while True:
@@ -174,6 +179,7 @@ async def modbus_client():
 
         await asyncio.sleep(config_parameters.SLEEP_TIME)
 
+
 # API Endpoints
 @app.get("/")
 async def root():
@@ -208,18 +214,49 @@ async def get_data(session: AsyncSession = Depends(get_session)) -> Sequence[Reg
 
 @app.get("/view")
 async def view_data(request: Request, session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(RegisterData))
-    data = result.scalars().all()
-    return templates.TemplateResponse("view_data.html", {"request": request, "data": data})
+    async with session as session:
+        result = await session.execute(select(RegisterData))
+        data = result.scalars().all()
+        return templates.TemplateResponse("view_data.html", {"request": request, "data": data})
 
 
 @app.get("/report")
-async def generate_report(filename: str, batch_id: Optional[str] = None, session: AsyncSession = Depends(get_session)):
-    if batch_id:
-        result = await session.execute(select(RegisterData).filter(RegisterData.register1 == float(batch_id)))
-        data = result.scalars().all()
-        return print_db_to_pdf(data, filename, 1)
-    return RedirectResponse(url="/view")
+async def generate_report(
+    filename: str,
+    batch_id: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+):
+    async with session as session:
+        if batch_id:
+            result = await session.execute(
+                select(RegisterData).filter(
+                    RegisterData.register1 == float(batch_id)
+                )
+            )
+            data = result.scalars().all()
+
+            # Transform the data into a list of lists
+            data_list = [
+                [
+                    item.id,
+                    item.timestamp,
+                    item.register1,
+                    item.register2,
+                    item.register3,
+                    item.register4,
+                    item.register5,
+                    item.register6,
+                    item.register7,
+                    item.register8,
+                    item.register9,
+                    item.register10,
+                    item.register11,
+                ]
+                for item in data
+            ]
+
+            return print_db_to_pdf(data_list, filename, '1')
+        return RedirectResponse(url="/view")
 
 
 @app.get("/del_file/{filename}")
@@ -232,16 +269,18 @@ async def delete_file(filename: str):
 
 @app.get("/del_batch")
 async def delete_batch(batch_id: str, session: AsyncSession = Depends(get_session)):
-    await session.execute(select(RegisterData).filter(RegisterData.register1 == float(batch_id)).delete())
-    await session.commit()
-    return RedirectResponse(url="/view")
+    async with session as session:
+        await session.execute(select(RegisterData).filter(RegisterData.register1 == float(batch_id)).delete())
+        await session.commit()
+        return RedirectResponse(url="/view")
 
 
 @app.get("/del_all")
 async def delete_all(session: AsyncSession = Depends(get_session)):
-    await session.execute(select(RegisterData).delete())
-    await session.commit()
-    return RedirectResponse(url="/view")
+    async with session as session:
+        await session.execute(select(RegisterData).delete())
+        await session.commit()
+        return RedirectResponse(url="/view")
 
 
 @app.get("/filterData")
@@ -255,38 +294,39 @@ async def filter_data(
         order_dir: str,
         session: AsyncSession = Depends(get_session)
 ):
-    columns = [
-        "id", "timestamp", "register1", "register2", "register3",
-        "register4", "register5", "register6", "register7",
-        "register8", "register9", "register10", "register11"
-    ]
-    order_column_name = columns[order_column]
+    async with session as session:
+        columns = [
+            "id", "timestamp", "register1", "register2", "register3",
+            "register4", "register5", "register6", "register7",
+            "register8", "register9", "register10", "register11"
+        ]
+        order_column_name = columns[order_column]
 
-    query = select(RegisterData)
+        query = select(RegisterData)
 
-    if search:
-        query = query.filter(RegisterData.register1 == float(search))
+        if search:
+            query = query.filter(RegisterData.register1 == float(search))
 
-    if order_dir == "desc":
-        query = query.order_by(getattr(RegisterData, order_column_name).desc())
-    else:
-        query = query.order_by(getattr(RegisterData, order_column_name))
+        if order_dir == "desc":
+            query = query.order_by(getattr(RegisterData, order_column_name).desc())
+        else:
+            query = query.order_by(getattr(RegisterData, order_column_name))
 
-    total_records = await session.execute(select(RegisterData))
-    total_count = total_records.scalars()
+        total_records = await session.execute(select(RegisterData))
+        total_count = total_records.scalars()
 
-    filtered = await session.execute(query.offset(start).limit(length))
-    data = [
-        [getattr(row, col) for col in columns]
-        for row in filtered.scalars().all()
-    ]
+        filtered = await session.execute(query.offset(start).limit(length))
+        data = [
+            [getattr(row, col) for col in columns]
+            for row in filtered.scalars().all()
+        ]
 
-    return JSONResponse({
-        "draw": draw,
-        "recordsTotal": total_count,
-        "recordsFiltered": len(data),
-        "data": data
-    })
+        return JSONResponse({
+            "draw": draw,
+            "recordsTotal": total_count,
+            "recordsFiltered": len(data),
+            "data": data
+        })
 
 
 # if __name__ == "__main__":
