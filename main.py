@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from typing import List, Optional, Sequence, Any, AsyncGenerator
 
 import uvicorn
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Float, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import func
 
 import config_parameters
 from services.pdf_generation_service import print_db_to_pdf
@@ -235,14 +236,14 @@ async def delete_all(session: AsyncSession = Depends(get_session)):
 
 @app.get("/filterData")
 async def filter_data(
-        request: Request,
-        draw: int,
-        start: int,
-        length: int,
-        search: Optional[str] = None,  # Make this optional
-        order_column: int = 0,  # Default to the first column
-        order_dir: str = "asc",
-        session: AsyncSession = Depends(get_session),
+    request: Request,
+    draw: int = Query(...),
+    start: int = Query(...),
+    length: int = Query(...),
+    search: Optional[str] = Query(None),
+    order_column: int = Query(0),
+    order_dir: str = Query("asc"),
+    session: AsyncSession = Depends(get_session),
 ):
     async with session as session:
         columns = [
@@ -263,23 +264,26 @@ async def filter_data(
         order_column_name = columns[order_column]
 
         query = select(RegisterData)
+        total_records_query = select(func.count(RegisterData.id))
 
         if search:
             try:
                 search_value = float(search)  # Convert search to float
                 query = query.filter(RegisterData.register1 == search_value)
+                total_records_query = total_records_query.filter(RegisterData.register1 == search_value)
             except ValueError:
                 print(f"Invalid search term: {search}")
                 return JSONResponse({"draw": draw, "recordsTotal": 0, "recordsFiltered": 0, "data": []})
 
+        # Apply sorting
+        order_by_clause = getattr(RegisterData, order_column_name)
         if order_dir == "desc":
-            query = query.order_by(getattr(RegisterData, order_column_name).desc())
-        else:
-            query = query.order_by(getattr(RegisterData, order_column_name))
+            order_by_clause = order_by_clause.desc()
+        query = query.order_by(order_by_clause)
 
-        # Get total records *before* applying limit/offset
-        total_records_result = await session.execute(select(RegisterData))
-        total_records = len(total_records_result.scalars().all())
+        # Get total records *after* applying filter
+        total_records = await session.execute(total_records_query)
+        total_records = total_records.scalar_one()
 
         # Apply limit and offset *after* getting the total count
         filtered_result = await session.execute(query.offset(start).limit(length))
@@ -293,7 +297,7 @@ async def filter_data(
             {
                 "draw": draw,
                 "recordsTotal": total_records,
-                "recordsFiltered": total_records,  # Corrected this line
+                "recordsFiltered": total_records,
                 "data": data,
             }
         )

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Data View</title>
     <!-- Add Bootstrap CSS -->
-    <link rel="stylesheet" href="/static/bootstrap.min.css"/>
-    <link rel="stylesheet" href="/static/jquery.dataTables.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css"/>
     <style>
         tr td {
             text-align: center !important;
@@ -59,11 +59,11 @@
         <div class="collapse navbar-collapse">
             <div class="navbar-nav">
                 <button class="btn btn-primary mx-1" id="print_data">Report Data</button>
-                <button type="button" class="btn btn-danger mx-1" id="del_batch" data-toggle="modal"
-                        data-target="#del_confirm_modal">Delete Batch
+                <button type="button" class="btn btn-danger mx-1" id="del_batch" data-bs-toggle="modal"
+                        data-bs-target="#del_confirm_modal">Delete Batch
                 </button>
-                <button type="button" class="btn btn-warning mx-1" id="del_all" data-toggle="modal"
-                        data-target="#del_confirm_modal">Delete All
+                <button type="button" class="btn btn-warning mx-1" id="del_all" data-bs-toggle="modal"
+                        data-bs-target="#del_confirm_modal">Delete All
                 </button>
             </div>
         </div>
@@ -138,20 +138,19 @@
 </div>
 
 <!-- Modal -->
-<div class="modal" id="del_confirm_modal" tabindex="-1" role="dialog">
+<div class="modal fade" id="del_confirm_modal" tabindex="-1" role="dialog" aria-labelledby="del_confirm_modalLabel"
+     aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Are you sure?</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title" id="del_confirm_modalLabel">Are you sure?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p>Do you really want to delete data?</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
                 <a href="/del_batch" id="del_target">
                     <button type="button" class="btn btn-primary">Yes</button>
                 </a>
@@ -160,57 +159,74 @@
     </div>
 </div>
 
-<!-- Add jQuery before DataTables JS -->
-<script src="/jquery-3.7.1.js"></script>
-<!-- Add DataTables JS after jQuery -->
-<script src="/static/jquery.dataTables.min.js"></script>
-<script src="/static/bootstrap.min.js"></script>
-<script src="/static/popper.min.js"></script>
+<!-- Add jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<!-- Add DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<!-- Add Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
     $(document).ready(function () {
         let date = new Date();
         $("#current_date").text(date.toLocaleDateString("en-GB"));
         $("#print_data, #del_batch").attr("disabled", true);
 
-        var table = $('#myTable').DataTable({
-            "processing": true,
-            "serverSide": true,
-            "ajax": {
-                "url": "/filterData",
-                "type": "GET",
-                "data": function (d) {
-                    console.log("Data is: " + d);
-                }
+        const table = $("#myTable").DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: "/filterData",
+                type: "GET",
+                data: function (d) {
+                    console.log("Data is: " + JSON.stringify(d));
+                },
             },
-            "columns": [
+            columns: [
                 {
-                    "data": 0,
-                    "render": (data, type, row, meta) =>
-                        (table.page.info().page * table.page.info().length) + meta.row + 1
+                    data: null,
+                    orderable: false, // Disable sorting for the SL.NO column
+                    render: function (data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    },
                 },
                 {
-                    "data": 1,
-                    "render": (data, type) => type === 'display' ? new Date(data).toLocaleString("en-GB") : data
+                    data: 1,
+                    render: function (data, type) {
+                        return type === "display" ? new Date(data).toLocaleString("en-GB") : data;
+                    },
                 },
-                {"data": 2},
+                {data: 2},
                 ...Array.from({length: 6}, (_, i) => ({
-                    "data": i + 3,
-                    "render": (data, type) => type === 'display' ? parseFloat(data).toFixed(2).replace(/\.?0+$/, '') : data
+                    data: i + 3,
+                    render: function (data, type) {
+                        return type === "display"
+                            ? parseFloat(data).toFixed(2).replace(/\.?0+$/, "")
+                            : data;
+                    },
                 })),
-                {"data": 10}
-            ]
+                {data: 10},
+            ],
+            search: {
+                return: false,
+            },
         });
 
-        $('#print_data').on('click', function (e) {
+        $("#print_data").on("click", function (e) {
             e.preventDefault();
-            let filename = `report_data_${new Date().toISOString().replace("T", "_").replaceAll(":", "-").split(".")[0]}.pdf`;
-            let batch_id = $('#myTable_filter input').val();
+            let filename = `report_data_${new Date()
+                .toISOString()
+                .replace("T", "_")
+                .replaceAll(":", "-")
+                .split(".")[0]}.pdf`;
+            let batch_id = $(".dataTables_filter input").val();
             if (batch_id) {
                 let url = `/report?filename=${filename}&batch_id=${batch_id}`;
                 $(".spinner-container").removeClass("d-none");
                 fetch(url)
-                    .then(response => response.blob())
-                    .then(blob => {
+                    .then((response) => response.blob())
+                    .then((blob) => {
                         const downloadUrl = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = downloadUrl;
@@ -222,26 +238,31 @@
             }
         });
 
-        $('#myTable_filter input').on('keyup', function () {
-            table.columns(2).search(this.value).draw();
-            const hasData = table.data().count() > 0 && this.value !== "";
+        $(".dataTables_filter input").on("keyup", function () {
+            table.column(2).search(this.value).draw();
+            const hasData = table.rows({search: "applied"}).data().length > 0 && this.value !== "";
             $("#print_data, #del_batch").attr("disabled", !hasData);
             if (hasData) {
-                $("#batch_rpm").text(table.data().eq(0)[11]);
-                $("#batch_time").text(table.data().eq(0)[9]);
+                const firstRow = table.rows({search: "applied"}).data()[0];
+                $("#batch_rpm").text(firstRow[11]);
+                $("#batch_time").text(firstRow[9]);
             } else {
                 $("#batch_rpm, #batch_time").text("");
             }
         });
 
-        $('#del_batch').on('click', function () {
-            $('#del_confirm_modal .modal-body p').text("Do you really want to delete Batch ID " + $('#myTable_filter input').val() + " data?");
-            $('#del_target').attr("href", "/del_batch");
+        $("#del_batch").on("click", function () {
+            $("#del_confirm_modal .modal-body p").text(
+                "Do you really want to delete Batch ID " +
+                $(".dataTables_filter input").val() +
+                " data?"
+            );
+            $("#del_target").attr("href", "/del_batch");
         });
 
-        $('#del_all').on('click', function () {
-            $('#del_confirm_modal .modal-body p').text("Do you really want to delete all data?");
-            $('#del_target').attr("href", "/del_all");
+        $("#del_all").on("click", function () {
+            $("#del_confirm_modal .modal-body p").text("Do you really want to delete all data?");
+            $("#del_target").attr("href", "/del_all");
         });
     });
 </script>
