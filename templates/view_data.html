@@ -7,93 +7,78 @@
     <!-- Add Bootstrap CSS -->
     <link rel="stylesheet" href="/static/bootstrap.min.css"/>
     <link rel="stylesheet" href="/static/jquery.dataTables.min.css"/>
+    <style>
+        tr td {
+            text-align: center !important;
+        }
+
+        .spinner-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 100px;
+            height: 100px;
+            animation: spin 2s linear infinite;
+        }
+
+        .d-none {
+            display: none !important;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 </head>
 <body>
-<style>
-    tr td {
-        text-align: center !important;
-    }
-
-    .spinner-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 9999;
-        background: #0006;
-    }
-
-    .loader {
-        border: 16px solid #f3f3f3;
-        border-radius: 50%;
-        border-top: 16px solid #3498db;
-        width: 100px;
-        height: 100px;
-        -webkit-animation: spin 2s linear infinite;
-        /* Safari */
-        animation: spin 2s linear infinite;
-    }
-
-    .d-none {
-        display: none !important;
-    }
-
-    /* Safari */
-    @-webkit-keyframes spin {
-        0% {
-            -webkit-transform: rotate(0deg);
-        }
-
-        100% {
-            -webkit-transform: rotate(360deg);
-        }
-    }
-
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-</style>
 <div class="d-none spinner-container">
     <div class="loader"></div>
 </div>
-<div class="mx-5 px-5">
-    <div class="d-flex justify-content-between">
-        <h1 class="my-3">Data View</h1>
-        <div class="d-flex justify-content-around my-5">
-            <button class="btn btn-primary mx-1" id="print_data">Report Data</button>
-            <button type="button" class="btn btn-danger mx-1" id="del_batch" data-toggle="modal"
-                    data-target="#del_confirm_modal">Delete Batch
-            </button>
-            <button type="button" class="btn btn-warning mx-1" id="del_all" data-toggle="modal"
-                    data-target="#del_confirm_modal">Delete All
-            </button>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Data View</a>
+        <div class="collapse navbar-collapse">
+            <div class="navbar-nav">
+                <button class="btn btn-primary mx-1" id="print_data">Report Data</button>
+                <button type="button" class="btn btn-danger mx-1" id="del_batch" data-toggle="modal"
+                        data-target="#del_confirm_modal">Delete Batch
+                </button>
+                <button type="button" class="btn btn-warning mx-1" id="del_all" data-toggle="modal"
+                        data-target="#del_confirm_modal">Delete All
+                </button>
+            </div>
         </div>
     </div>
+</nav>
+
+<div class="mx-5 px-5">
     <div class="table-responsive">
         <table id="myTable" class="table w-100">
             <thead>
             <tr>
-                <th style="width: 60px !important;">Model</th>
+                <th style="width: 60px;">Model</th>
                 <th colspan="2">DISPAX REACTOR DR 2000/05</th>
                 <th colspan="5" rowspan="3" class="text-center">
-                    <img
-                            src="/static/logo.png"
-                            width="280"
-                            height="auto"
-                            class="mx-auto my-auto"
-                            alt="Logo"
-                    />
+                    <img src="/static/logo.png" width="280" alt="Logo"/>
                 </th>
                 <th>Date</th>
                 <th colspan="2" id="current_date"></th>
@@ -131,21 +116,8 @@
                 <th class="text-center">(RPM)</th>
                 <th class="text-center">(Second)</th>
             </tr>
-            <tr style="display:none;">
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-                <th></th>
-            </tr>
             </thead>
             <tbody>
-
             {% for entry in data %}
             <tr>
                 <td>{{ entry.id }}</td>
@@ -164,8 +136,8 @@
         </table>
     </div>
 </div>
+
 <!-- Modal -->
-<!-- <div class="modal fade" id="del_confirm_modal" tabindex="-1" aria-labelledby="del_confirm_modalLabel" aria-hidden="true"> -->
 <div class="modal" id="del_confirm_modal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -187,8 +159,9 @@
         </div>
     </div>
 </div>
+
 <!-- Add jQuery before DataTables JS -->
-<script src="/static/jquery-3.7.0.js"></script>
+<script src="/jquery-3.7.1.js"></script>
 <!-- Add DataTables JS after jQuery -->
 <script src="/static/jquery.dataTables.min.js"></script>
 <script src="/static/bootstrap.min.js"></script>
@@ -196,139 +169,48 @@
 <script>
     $(document).ready(function () {
         let date = new Date();
-        let current_date = date.toLocaleDateString("en-GB");
-        $("#current_date").text(current_date);
-        $("#print_data").attr("disabled", true);
-        $("#del_batch").attr("disabled", true);
-        var table = $('#myTable').DataTable({
+        $("#current_date").text(date.toLocaleDateString("en-GB"));
+        $("#print_data, #del_batch").attr("disabled", true);
 
+        var table = $('#myTable').DataTable({
             "processing": true,
             "serverSide": true,
-            "orderCellsTop": true,
             "ajax": {
                 "url": "/filterData",
-                "type": "GET"
+                "type": "GET",
+                "data": function (d) {
+                    console.log("Data is: " + d);
+                }
             },
             "columns": [
                 {
                     "data": 0,
-                    "render": function (data, type, row, meta) {
-                        let pageInfo = $('#myTable').DataTable().page.info();
-                        return ((pageInfo.page * pageInfo.length) + meta.row + 1);
-                    }
+                    "render": (data, type, row, meta) =>
+                        (table.page.info().page * table.page.info().length) + meta.row + 1
                 },
                 {
                     "data": 1,
-                    "render": function (data, type, row, meta) {
-                        if (type === 'display') {
-                            let date = new Date(data);
-                            return date.toLocaleString("en-GB");
-                        } else {
-                            return data;
-                        }
-                    }
+                    "render": (data, type) => type === 'display' ? new Date(data).toLocaleString("en-GB") : data
                 },
                 {"data": 2},
-                {
-                    "data": 3,
-                    "render": function (data, type, row, meta) {
-                        if (type === 'display') {
-                            var num = parseFloat(data).toFixed(2);
-                            while (num.endsWith("0")) {
-                                num = num.slice(0, -1);
-                            }
-                            if (num.endsWith(".")) num = num.slice(0, -1);
-                            return num;
-                        } else {
-                            return data;
-                        }
-                    }
-                },
-                {
-                    "data": 4,
-                    "render": function (data, type, row, meta) {
-                        if (type === 'display') {
-                            var num = parseFloat(data).toFixed(2);
-                            while (num.endsWith("0")) {
-                                num = num.slice(0, -1);
-                            }
-                            if (num.endsWith(".")) num = num.slice(0, -1);
-                            return num;
-                        } else {
-                            return data;
-                        }
-                    }
-                },
-                {
-                    "data": 5,
-                    "render": function (data, type, row, meta) {
-                        if (type === 'display') {
-                            var num = parseFloat(data).toFixed(2);
-                            while (num.endsWith("0")) {
-                                num = num.slice(0, -1);
-                            }
-                            if (num.endsWith(".")) num = num.slice(0, -1);
-                            return num;
-                        } else {
-                            return data;
-                        }
-                    }
-                },
-                {"data": 6},
-                {
-                    "data": 7,
-                    "render": function (data, type, row, meta) {
-                        if (type === 'display') {
-                            var num = parseFloat(data).toFixed(2);
-                            while (num.endsWith("0")) {
-                                num = num.slice(0, -1);
-                            }
-                            if (num.endsWith(".")) num = num.slice(0, -1);
-                            return num;
-                        } else {
-                            return data;
-                        }
-                    }
-                },
-                {
-                    "data": 8,
-                    "render": function (data, type, row, meta) {
-                        if (type === 'display') {
-                            var num = parseFloat(data).toFixed(2);
-                            while (num.endsWith("0")) {
-                                num = num.slice(0, -1);
-                            }
-                            if (num.endsWith(".")) num = num.slice(0, -1);
-                            return num;
-                        } else {
-                            return data;
-                        }
-                    }
-                },
+                ...Array.from({length: 6}, (_, i) => ({
+                    "data": i + 3,
+                    "render": (data, type) => type === 'display' ? parseFloat(data).toFixed(2).replace(/\.?0+$/, '') : data
+                })),
                 {"data": 10}
             ]
         });
 
         $('#print_data').on('click', function (e) {
             e.preventDefault();
-
-            //Set the filename for the PDF file
-            let date = new Date().toISOString().replace("T", "_").replaceAll(":", "-").split(".")[0];
-            let filename = `report_data_${date}.pdf`;
+            let filename = `report_data_${new Date().toISOString().replace("T", "_").replaceAll(":", "-").split(".")[0]}.pdf`;
             let batch_id = $('#myTable_filter input').val();
-
             if (batch_id) {
                 let url = `/report?filename=${filename}&batch_id=${batch_id}`;
                 $(".spinner-container").removeClass("d-none");
-                fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json; charset=utf-8'
-                    },
-                })
+                fetch(url)
                     .then(response => response.blob())
-                    .then(response => {
-                        const blob = new Blob([response], {type: 'application/pdf'});
+                    .then(blob => {
                         const downloadUrl = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = downloadUrl;
@@ -336,36 +218,31 @@
                         document.body.appendChild(a);
                         a.click();
                         $(".spinner-container").addClass("d-none");
-                    })
+                    });
             }
         });
 
         $('#myTable_filter input').on('keyup', function () {
-            table
-                .columns(2) // replace 'columnIndex' with the index of Register1 column
-                .search(this.value)
-                .draw();
-            if (table.data().count() === 0 || $('#myTable_filter input').val() === "") {
-                $("#print_data").attr("disabled", true);
-                $("#del_batch").attr("disabled", true);
-                $("#batch_rpm").text("");
-                $("#batch_time").text("");
-            } else {
-                $("#print_data").attr("disabled", false);
-                $("#del_batch").attr("disabled", false);
+            table.columns(2).search(this.value).draw();
+            const hasData = table.data().count() > 0 && this.value !== "";
+            $("#print_data, #del_batch").attr("disabled", !hasData);
+            if (hasData) {
                 $("#batch_rpm").text(table.data().eq(0)[11]);
                 $("#batch_time").text(table.data().eq(0)[9]);
+            } else {
+                $("#batch_rpm, #batch_time").text("");
             }
         });
 
-        $('#del_batch').on('click', function (e) {
+        $('#del_batch').on('click', function () {
             $('#del_confirm_modal .modal-body p').text("Do you really want to delete Batch ID " + $('#myTable_filter input').val() + " data?");
             $('#del_target').attr("href", "/del_batch");
-        })
-        $('#del_all').on('click', function (e) {
+        });
+
+        $('#del_all').on('click', function () {
             $('#del_confirm_modal .modal-body p').text("Do you really want to delete all data?");
             $('#del_target').attr("href", "/del_all");
-        })
+        });
     });
 </script>
 </body>

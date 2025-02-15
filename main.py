@@ -72,56 +72,6 @@ template_dir = os.path.join(script_dir, "templates")
 app.mount("/static", StaticFiles(directory=st_abs_file_path), name="static")
 templates = Jinja2Templates(directory=template_dir)
 
-
-# Background Modbus Polling
-# async def modbus_client():
-#     while True:
-#         try:
-#             regs_l = c.read_holding_registers(config_parameters.REG_ADDR, config_parameters.REG_NB)
-#             print("Registers read:", regs_l)  # Log the raw register values
-#
-#             if regs_l:
-#                 regs_float = []
-#                 for i in range(0, len(regs_l), 2):
-#                     mypack = struct.pack('>HH', regs_l[i + 1], regs_l[i])
-#                     f = struct.unpack('>f', mypack)
-#                     regs_float.append(f[0])
-#                 print("Processed float values:", regs_float)  # Log the processed float values
-#
-#                 if int(regs_float[-1]) == 1:  # Check the condition for insertion
-#                     print("Inserting data into the database:", regs_float)
-#                     try:
-#                         async with get_session() as session:
-#                             data = RegisterData(
-#                                 timestamp=time.ctime(),
-#                                 register1=regs_float[0],
-#                                 register2=regs_float[1],
-#                                 register3=regs_float[2],
-#                                 register4=regs_float[3],
-#                                 register5=regs_float[4],
-#                                 register6=regs_float[5],
-#                                 register7=regs_float[6],
-#                                 register8=regs_float[7],
-#                                 register9=regs_float[8],
-#                                 register10=regs_float[9],
-#                                 register11=regs_float[10],
-#                             )
-#                             session.add(data)
-#                             await session.commit()
-#                             print("Data committed to the database.")
-#                     except Exception as e:
-#                         print(f"Error inserting data: {e}")
-#             else:
-#                 print("Read error: No data received from Modbus server.")
-#         except Exception as e:
-#             print(f"Error in Modbus client: {e}")
-#
-#         await asyncio.sleep(config_parameters.SLEEP_TIME)
-#
-#
-# # Start Modbus client in background thread
-# modbus_thread = threading.Thread(target=lambda: asyncio.run(modbus_client()), daemon=True)
-# modbus_thread.start()
 async def read_modbus_registers():
     loop = asyncio.get_event_loop()
     try:
@@ -289,50 +239,65 @@ async def filter_data(
         draw: int,
         start: int,
         length: int,
-        search: str,
-        order_column: int,
-        order_dir: str,
-        session: AsyncSession = Depends(get_session)
+        search: Optional[str] = None,  # Make this optional
+        order_column: int = 0,  # Default to the first column
+        order_dir: str = "asc",
+        session: AsyncSession = Depends(get_session),
 ):
     async with session as session:
         columns = [
-            "id", "timestamp", "register1", "register2", "register3",
-            "register4", "register5", "register6", "register7",
-            "register8", "register9", "register10", "register11"
+            "id",
+            "timestamp",
+            "register1",
+            "register2",
+            "register3",
+            "register4",
+            "register5",
+            "register6",
+            "register7",
+            "register8",
+            "register9",
+            "register10",
+            "register11",
         ]
         order_column_name = columns[order_column]
 
         query = select(RegisterData)
 
         if search:
-            query = query.filter(RegisterData.register1 == float(search))
+            try:
+                search_value = float(search)  # Convert search to float
+                query = query.filter(RegisterData.register1 == search_value)
+            except ValueError:
+                print(f"Invalid search term: {search}")
+                return JSONResponse({"draw": draw, "recordsTotal": 0, "recordsFiltered": 0, "data": []})
 
         if order_dir == "desc":
             query = query.order_by(getattr(RegisterData, order_column_name).desc())
         else:
             query = query.order_by(getattr(RegisterData, order_column_name))
 
-        total_records = await session.execute(select(RegisterData))
-        total_count = total_records.scalars()
+        # Get total records *before* applying limit/offset
+        total_records_result = await session.execute(select(RegisterData))
+        total_records = len(total_records_result.scalars().all())
 
-        filtered = await session.execute(query.offset(start).limit(length))
+        # Apply limit and offset *after* getting the total count
+        filtered_result = await session.execute(query.offset(start).limit(length))
+        filtered_data = filtered_result.scalars().all()
+
         data = [
-            [getattr(row, col) for col in columns]
-            for row in filtered.scalars().all()
+            [getattr(row, col) for col in columns] for row in filtered_data
         ]
 
-        return JSONResponse({
-            "draw": draw,
-            "recordsTotal": total_count,
-            "recordsFiltered": len(data),
-            "data": data
-        })
+        return JSONResponse(
+            {
+                "draw": draw,
+                "recordsTotal": total_records,
+                "recordsFiltered": total_records,  # Corrected this line
+                "data": data,
+            }
+        )
 
-
-# if __name__ == "__main__":
-#     asyncio.run(create_db_and_tables())
-#     asyncio.run(modbus_client())
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 async def main():
     # Run the create_db_and_tables function once
