@@ -249,22 +249,25 @@ async def filter_data(
     """
     Endpoint for DataTables server-side processing.
     """
-    columns = [
-        "id",
-        "timestamp",
-        "register1",
-        "register2",
-        "register3",
-        "register4",
-        "register5",
-        "register6",
-        "register7",
-        "register8",
-        "register9",
-        "register10",
-        "register11",
-    ]
-    order_column_name = columns[order_column]
+
+    # Map DataTables column index to RegisterData attribute
+    column_map = {
+        0: RegisterData.id,
+        1: RegisterData.timestamp,
+        2: RegisterData.register1,
+        3: RegisterData.register2,
+        4: RegisterData.register3,
+        5: RegisterData.register4,
+        6: RegisterData.register5,
+        7: RegisterData.register6,
+        8: RegisterData.register7,
+        9: RegisterData.register8,
+        10: RegisterData.register9,
+        11: RegisterData.register10,
+        12: RegisterData.register11,
+    }
+
+    order_column_name = column_map.get(order_column, RegisterData.id)  # Default to id if not found
 
     # 1. Base Query
     query = select(RegisterData)
@@ -272,40 +275,33 @@ async def filter_data(
 
     # 2. Apply Search Filter
     if search_value:
+        # Attempt to convert to float, otherwise, search on timestamp
         try:
             search_term = float(search_value)
             query = query.filter(RegisterData.register1 == search_term)
             total_records_query = total_records_query.filter(RegisterData.register1 == search_term)
         except ValueError:
-            print(f"Invalid search term: {search_value}")
-            # Return empty result if search term is invalid
-            return JSONResponse(
-                {
-                    "draw": draw,
-                    "recordsTotal": 0,
-                    "recordsFiltered": 0,
-                    "data": [],
-                }
-            )
+            # If not a float, attempt to search on timestamp
+            query = query.filter(RegisterData.timestamp.like(f"%{search_value}%"))
+            total_records_query = total_records_query.filter(RegisterData.timestamp.like(f"%{search_value}%"))
 
-    # 3. Apply Sorting
-    order_by_clause = getattr(RegisterData, order_column_name)
+    # 3. Calculate Total Records (after filtering)
+    async with session as session:
+        total_records_result = await session.execute(total_records_query)
+    filtered_records = total_records_result.scalar_one()
+
+    # 4. Apply Sorting
     if order_dir == "desc":
-        order_by_clause = order_by_clause.desc()
-    query = query.order_by(order_by_clause)
-
-    # 4. Calculate Total Records (after filtering)
-    async with session as s:
-        total_records_result = await s.execute(total_records_query)
-        total_records = total_records_result.scalar_one()
+        query = query.order_by(order_column_name.desc())
+    else:
+        query = query.order_by(order_column_name)
 
     # 5. Apply Pagination
     query = query.offset(start).limit(length)
 
     # 6. Execute Query and Fetch Data
-    async with session as s:
-        result = await s.execute(query)
-        data: List[RegisterData] = list(result.scalars().all())
+    result = await session.execute(query)
+    data: List[RegisterData] = list(result.scalars().all())
 
     # 7. Format Data for DataTables
     def format_row(row: RegisterData) -> List[Any]:
@@ -321,22 +317,30 @@ async def filter_data(
             row.register6,
             row.register7,
             row.register8,
-            row.register9,
-            row.register10,
-            row.register11,
+            row.register9  # IMPORTANT: Remove register10 and register11 since they are not in the table.
         ]
 
     formatted_data: List[List[Any]] = [format_row(row) for row in data]
 
     # 8. Construct and Return Response
+    all_records_query = select(func.count(RegisterData.id))
+    all_records_result = await session.execute(all_records_query)
+    total_records = all_records_result.scalar_one()
+
     response: Dict[str, Any] = {
         "draw": draw,
         "recordsTotal": total_records,
-        "recordsFiltered": total_records,  # Correct: recordsFiltered = recordsTotal after filtering
+        "recordsFiltered": filtered_records,
         "data": formatted_data,
     }
     return JSONResponse(response)
 
+
+async def get_total_records(session: AsyncSession) -> int:
+    """Helper function to get the total number of records in the database."""
+    query = select(func.count(RegisterData.id))
+    result = await session.execute(query)
+    return result.scalar_one()
 
 
 async def main():
