@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="dd2290b2-0ada-47d4-b5e1-e49b6bb56e1e" name="Changes" comment="Real time data works.">
+    <list default="true" id="dd2290b2-0ada-47d4-b5e1-e49b6bb56e1e" name="Changes" comment="Added Bootstrap to view_data.html">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/templates/view_data.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/view_data.html" afterDir="false" />
     </list>
@@ -373,7 +373,15 @@
       <option name="project" value="LOCAL" />
       <updated>1740495951197</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="Added Bootstrap to view_data.html">
+      <option name="closed" value="true" />
+      <created>1740501497236</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1740501497236</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -413,10 +421,11 @@
     <MESSAGE value="Fixing filter data" />
     <MESSAGE value="Working on new ui" />
     <MESSAGE value="Real time data works." />
-    <option name="LAST_COMMIT_MESSAGE" value="Real time data works." />
+    <MESSAGE value="Added Bootstrap to view_data.html" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added Bootstrap to view_data.html" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/iot_modbus_monitor$main.coverage" NAME="main Coverage Results" MODIFIED="1740500982667" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/iot_modbus_monitor$main.coverage" NAME="main Coverage Results" MODIFIED="1740501431588" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/iot_modbus_monitor$sqlalchemy_crudrouter.coverage" NAME="sqlalchemy_crudrouter Coverage Results" MODIFIED="1739025918512" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
     <SUITE FILE_PATH="coverage/iot_modbus_monitor$test_code.coverage" NAME="test_code Coverage Results" MODIFIED="1739026114094" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
     <SUITE FILE_PATH="coverage/iot_modbus_monitor$pymodbustcp_client.coverage" NAME="pymodbustcp_client Coverage Results" MODIFIED="1739020504891" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
