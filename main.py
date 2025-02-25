@@ -3,13 +3,14 @@ import struct
 import threading
 import time
 import asyncio
+import json
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import List, Optional, Sequence, Any, AsyncGenerator, Dict
 
 import uvicorn
-from fastapi import FastAPI, Request, Depends, Query
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import FastAPI, Request, Depends, WebSocket, WebSocketDisconnect
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pyModbusTCP.client import ModbusClient
@@ -17,7 +18,6 @@ from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Float, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import func
 
 import config_parameters
 from services.pdf_generation_service import print_db_to_pdf
@@ -80,11 +80,31 @@ async def read_modbus_registers():
         # Offload the blocking I/O call to a separate thread
         regs_l = await loop.run_in_executor(executor, c.read_holding_registers, config_parameters.REG_ADDR,
                                             config_parameters.REG_NB)
-        print("Registers read:", regs_l)  # Log the raw register values
+        # print("Registers read:", regs_l)  # Log the raw register values
         return regs_l
     except Exception as e:
         print(f"Error reading Modbus registers: {e}")
         return
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[int, WebSocket] = {}
+
+    async def connect(self, websocket: WebSocket, client_id: int):
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+
+    def disconnect(self, client_id: int):
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections.values():
+            await connection.send_text(message)
+
+
+manager = ConnectionManager()
 
 
 async def modbus_client():
@@ -121,6 +141,25 @@ async def modbus_client():
                             session.add(data)
                             await session.commit()
                             print("Data committed to the database.")
+
+                            data_dict = {
+                                "id": data.id,
+                                "timestamp": data.timestamp,
+                                "register1": data.register1,
+                                "register2": data.register2,
+                                "register3": data.register3,
+                                "register4": data.register4,
+                                "register5": data.register5,
+                                "register6": data.register6,
+                                "register7": data.register7,
+                                "register8": data.register8,
+                                "register9": data.register9,
+                                "register10": data.register10,
+                                "register11": data.register11,
+                            }
+
+                            # Broadcast the new data to all connected clients
+                            await manager.broadcast(message=json.dumps(data_dict))
                     except Exception as e:
                         print(f"Error inserting data: {e}")
             else:
@@ -160,7 +199,7 @@ async def get_data(session: AsyncSession = Depends(get_session)) -> Sequence[Reg
         stmt = select(RegisterData)
         result = await session.execute(stmt)
         data = result.scalars().all()
-        print("Data retrieved from the database:", data)
+        # print("Data retrieved from the database:", data)
         return data
 
 
@@ -235,10 +274,19 @@ async def delete_all(session: AsyncSession = Depends(get_session)):
         return RedirectResponse(url="/view")
 
 
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: int):
+    await manager.connect(websocket, client_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # await websocket.send_text(f"Message text was: {data}") # Echo back the received message (optional)
+    except WebSocketDisconnect:
+        manager.disconnect(client_id)
+
+
 async def main():
-    # Run the create_db_and_tables function once
     await create_db_and_tables()
-    # Run the modbus_client function, which has its own infinite loop
     await modbus_client()
 
 
@@ -247,8 +295,6 @@ def start_server():
 
 
 if __name__ == "__main__":
-    # Start the Uvicorn server in a separate thread
     server_thread = threading.Thread(target=start_server)
     server_thread.start()
-    # Run the asynchronous main function
     asyncio.run(main())

@@ -1,275 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Data View</title>
-    <!-- Add Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modbus Data</title>
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
     <style>
-        tr td {
-            text-align: center !important;
-        }
-
-        .spinner-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: absolute;
-            top: 0;
-            left: 0;
+        #myGrid {
             width: 100%;
-            height: 100%;
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.4);
-        }
-
-        .loader {
-            border: 16px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 16px solid #3498db;
-            width: 100px;
-            height: 100px;
-            animation: spin 2s linear infinite;
-        }
-
-        .d-none {
-            display: none !important;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
+            height: 500px;
         }
     </style>
 </head>
 <body>
-<div class="d-none spinner-container">
-    <div class="loader"></div>
-</div>
-
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">Data View</a>
-        <div class="collapse navbar-collapse">
-            <div class="navbar-nav">
-                <button class="btn btn-primary mx-1" id="print_data">Report Data</button>
-                <button type="button" class="btn btn-danger mx-1" id="del_batch" data-bs-toggle="modal"
-                        data-bs-target="#del_confirm_modal">Delete Batch
-                </button>
-                <button type="button" class="btn btn-warning mx-1" id="del_all" data-bs-toggle="modal"
-                        data-bs-target="#del_confirm_modal">Delete All
-                </button>
-            </div>
-        </div>
-    </div>
-</nav>
-
-<div class="mx-5 px-5">
-    <div class="table-responsive">
-        <table id="myTable" class="table w-100">
-            <thead>
-            <tr>
-                <th style="width: 60px;">Model</th>
-                <th colspan="2">DISPAX REACTOR DR 2000/05</th>
-                <th colspan="5" rowspan="3" class="text-center">
-                    <img src="/static/logo.png" width="280" alt="Logo"/>
-                </th>
-                <th>Date</th>
-                <th colspan="2" id="current_date"></th>
-            </tr>
-            <tr>
-                <th>Project Number</th>
-                <th colspan="2" style="text-align: right;">20125620</th>
-                <th>Set RPM</th>
-                <th colspan="2" id="batch_rpm">
-                    {{ data[0].register10 if data and data|length > 0 else "" }}
-                </th>
-            </tr>
-            <tr>
-                <th>Serial Number</th>
-                <th colspan="2" style="text-align: right;">IB24-1367</th>
-                <th>Set Time</th>
-                <th colspan="2" id="batch_time">
-                    {{ data[0].register8 if data and data|length > 0 else "" }}
-                </th>
-            </tr>
-            <tr>
-                <th rowspan="2" class="text-center">SL.NO</th>
-                <th rowspan="2" class="text-center">Date & Time</th>
-                <th rowspan="2" class="text-center">Batch ID</th>
-                <th class="text-center">Motor Speed</th>
-                <th class="text-center">Motor Current</th>
-                <th class="text-center">Motor Torque</th>
-                <th class="text-center">Motor Run Hour</th>
-                <th class="text-center">Product Temperature</th>
-                <th class="text-center">Tool Speed</th>
-                <th class="text-center">Actual Time</th>
-            </tr>
-            <tr>
-                <th class="text-center">(RPM)</th>
-                <th class="text-center">(Amps)</th>
-                <th class="text-center">(%)</th>
-                <th class="text-center">(Hour)</th>
-                <th class="text-center">(°C)</th>
-                <th class="text-center">(RPM)</th>
-                <th class="text-center">(Second)</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for entry in data %}
-            <tr>
-                <td>{{ entry.id }}</td>
-                <td>{{ entry.timestamp }}</td>
-                <td>{{ entry.register1 }}</td>
-                <td>{{ entry.register2 }}</td>
-                <td>{{ entry.register3 }}</td>
-                <td>{{ entry.register4 }}</td>
-                <td>{{ entry.register5 }}</td>
-                <td>{{ entry.register6 }}</td>
-                <td>{{ entry.register7 }}</td>
-                <td>{{ entry.register9 }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-
-    </div>
-</div>
-
-<!-- Modal -->
-<div class="modal fade" id="del_confirm_modal" tabindex="-1" role="dialog" aria-labelledby="del_confirm_modalLabel"
-     aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="del_confirm_modalLabel">Are you sure?</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Do you really want to delete data?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
-                <a href="/del_batch" id="del_target">
-                    <button type="button" class="btn btn-primary">Yes</button>
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Add jQuery -->
-<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
-<!-- Add DataTables JS -->
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<!-- Add Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<h1>Modbus Register Data</h1>
+<div id="myGrid"></div>
 
 <script>
-    $(document).ready(function () {
-        let date = new Date();
-        $("#current_date").text(date.toLocaleDateString("en-GB"));
-        $("#print_data, #del_batch").attr("disabled", true);
+    const columnDefs = [
+        {headerName: "ID", field: "id", sortable: true, filter: true},
+        {headerName: "Timestamp", field: "timestamp", sortable: true, filter: true},
+        {headerName: "Register 1", field: "register1", sortable: true, filter: true},
+        {headerName: "Register 2", field: "register2", sortable: true, filter: true},
+        {headerName: "Register 3", field: "register3", sortable: true, filter: true},
+        {headerName: "Register 4", field: "register4", sortable: true, filter: true},
+        {headerName: "Register 5", field: "register5", sortable: true, filter: true},
+        {headerName: "Register 6", field: "register6", sortable: true, filter: true},
+        {headerName: "Register 7", field: "register7", sortable: true, filter: true},
+        {headerName: "Register 8", field: "register8", sortable: true, filter: true},
+        {headerName: "Register 9", field: "register9", sortable: true, filter: true},
+        {headerName: "Register 10", field: "register10", sortable: true, filter: true},
+        {headerName: "Register 11", field: "register11", sortable: true, filter: true},
+    ];
 
-        const table = $("#myTable").DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: "/filterData",
-                type: "GET",
-                data: function (d) {
-                    console.log("Data is: " + JSON.stringify(d));
-                },
-            },
-            columns: [
-                {
-                    data: null,
-                    orderable: false, // Disable sorting for the SL.NO column
-                    render: function (data, type, row, meta) {
-                        return meta.row + meta.settings._iDisplayStart + 1;
-                    },
-                },
-                {
-                    data: 1,
-                    render: function (data, type) {
-                        return type === "display" ? new Date(data).toLocaleString("en-GB") : data;
-                    },
-                },
-                {data: 2},
-                ...Array.from({length: 6}, (_, i) => ({
-                    data: i + 3,
-                    render: function (data, type) {
-                        return type === "display"
-                            ? parseFloat(data).toFixed(2).replace(/\.?0+$/, "")
-                            : data;
-                    },
-                })),
-                {data: 9},
-            ],
-            search: {
-                return: false,
-            },
-        });
-
-        $("#print_data").on("click", function (e) {
-            e.preventDefault();
-            let filename = `report_data_${new Date()
-                .toISOString()
-                .replace("T", "_")
-                .replaceAll(":", "-")
-                .split(".")[0]}.pdf`;
-            let batch_id = $(".dataTables_filter input").val();
-            if (batch_id) {
-                let url = `/report?filename=${filename}&batch_id=${batch_id}`;
-                $(".spinner-container").removeClass("d-none");
-                fetch(url)
-                    .then((response) => response.blob())
-                    .then((blob) => {
-                        const downloadUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = downloadUrl;
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        $(".spinner-container").addClass("d-none");
-                    });
-            }
-        });
-
-        $(".dataTables_filter input").on("keyup", function () {
-            table.column(2).search(this.value).draw();
-            const hasData = table.rows({search: "applied"}).data().length > 0 && this.value !== "";
-            $("#print_data, #del_batch").attr("disabled", !hasData);
-            if (hasData) {
-                const firstRow = table.rows({search: "applied"}).data()[0];
-                $("#batch_rpm").text(firstRow[11]);
-                $("#batch_time").text(firstRow[9]);
-            } else {
-                $("#batch_rpm, #batch_time").text("");
-            }
-        });
-
-        $("#del_batch").on("click", function () {
-            $("#del_confirm_modal .modal-body p").text(
-                "Do you really want to delete Batch ID " +
-                $(".dataTables_filter input").val() +
-                " data?"
-            );
-            $("#del_target").attr("href", "/del_batch");
-        });
-
-        $("#del_all").on("click", function () {
-            $("#del_confirm_modal .modal-body p").text("Do you really want to delete all data?");
-            $("#del_target").attr("href", "/del_all");
-        });
+    const gridOptions = {
+        columnDefs: columnDefs,
+        rowData: [],  // Start with an empty array
+        pagination: true,
+        paginationPageSize: 25,
+        getRowId: params => params.data.id, // IMPORTANT: Use 'id' as the row ID
+    };
+    let gridApi;
+    document.addEventListener("DOMContentLoaded", function () {
+        const eGridDiv = document.querySelector("#myGrid");
+        gridApi = agGrid.createGrid(eGridDiv, gridOptions);
     });
+
+    // Fetch initial data from /data
+    fetch('/data')
+        .then(response => response.json())
+        .then(initialData => {
+            // Set the initial row data
+            gridOptions.rowData = initialData;
+
+            // Connect to WebSocket *after* initial data is loaded
+            connectWebSocket();
+        })
+        .catch(error => console.error('Error fetching initial data:', error));
+
+    function connectWebSocket() {
+        const clientId = Math.floor(Math.random() * 1000000);
+        const ws = new WebSocket(`ws://0.0.0.0:8000/ws/${clientId}`);
+
+        ws.onmessage = (event) => {
+            console.log("Message from server:", event.data);
+            try {
+                const newData = JSON.parse(event.data);
+
+                // Use applyTransaction to efficiently add/update rows
+                gridApi.applyTransaction({add: [newData]});
+
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket connection closed");
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+    }
+
 </script>
 </body>
 </html>
