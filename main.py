@@ -5,7 +5,7 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from typing import List, Optional, Sequence, Any, AsyncGenerator
+from typing import List, Optional, Sequence, Any, AsyncGenerator, Dict
 
 import uvicorn
 from fastapi import FastAPI, Request, Depends, Query
@@ -72,6 +72,7 @@ st_abs_file_path = os.path.join(script_dir, "static/")
 template_dir = os.path.join(script_dir, "templates")
 app.mount("/static", StaticFiles(directory=st_abs_file_path), name="static")
 templates = Jinja2Templates(directory=template_dir)
+
 
 async def read_modbus_registers():
     loop = asyncio.get_event_loop()
@@ -173,9 +174,9 @@ async def view_data(request: Request, session: AsyncSession = Depends(get_sessio
 
 @app.get("/report")
 async def generate_report(
-    filename: str,
-    batch_id: Optional[str] = None,
-    session: AsyncSession = Depends(get_session),
+        filename: str,
+        batch_id: Optional[str] = None,
+        session: AsyncSession = Depends(get_session),
 ):
     async with session as session:
         if batch_id:
@@ -236,71 +237,106 @@ async def delete_all(session: AsyncSession = Depends(get_session)):
 
 @app.get("/filterData")
 async def filter_data(
-    request: Request,
-    draw: int = Query(...),
-    start: int = Query(...),
-    length: int = Query(...),
-    search: Optional[str] = Query(None),
-    order_column: int = Query(0),
-    order_dir: str = Query("asc"),
-    session: AsyncSession = Depends(get_session),
-):
-    async with session as session:
-        columns = [
-            "id",
-            "timestamp",
-            "register1",
-            "register2",
-            "register3",
-            "register4",
-            "register5",
-            "register6",
-            "register7",
-            "register8",
-            "register9",
-            "register10",
-            "register11",
+        request: Request,
+        draw: int = Query(...),
+        start: int = Query(...),
+        length: int = Query(...),
+        search_value: str = Query(None, alias="search[value]"),
+        order_column: int = Query(0, alias="order[0][column]"),
+        order_dir: str = Query("asc", alias="order[0][dir]"),
+        session: AsyncSession = Depends(get_session),
+) -> JSONResponse:
+    """
+    Endpoint for DataTables server-side processing.
+    """
+    columns = [
+        "id",
+        "timestamp",
+        "register1",
+        "register2",
+        "register3",
+        "register4",
+        "register5",
+        "register6",
+        "register7",
+        "register8",
+        "register9",
+        "register10",
+        "register11",
+    ]
+    order_column_name = columns[order_column]
+
+    # 1. Base Query
+    query = select(RegisterData)
+    total_records_query = select(func.count(RegisterData.id))
+
+    # 2. Apply Search Filter
+    if search_value:
+        try:
+            search_term = float(search_value)
+            query = query.filter(RegisterData.register1 == search_term)
+            total_records_query = total_records_query.filter(RegisterData.register1 == search_term)
+        except ValueError:
+            print(f"Invalid search term: {search_value}")
+            # Return empty result if search term is invalid
+            return JSONResponse(
+                {
+                    "draw": draw,
+                    "recordsTotal": 0,
+                    "recordsFiltered": 0,
+                    "data": [],
+                }
+            )
+
+    # 3. Apply Sorting
+    order_by_clause = getattr(RegisterData, order_column_name)
+    if order_dir == "desc":
+        order_by_clause = order_by_clause.desc()
+    query = query.order_by(order_by_clause)
+
+    # 4. Calculate Total Records (after filtering)
+    async with session as s:
+        total_records_result = await s.execute(total_records_query)
+        total_records = total_records_result.scalar_one()
+
+    # 5. Apply Pagination
+    query = query.offset(start).limit(length)
+
+    # 6. Execute Query and Fetch Data
+    async with session as s:
+        result = await s.execute(query)
+        data: List[RegisterData] = list(result.scalars().all())
+
+    # 7. Format Data for DataTables
+    def format_row(row: RegisterData) -> List[Any]:
+        """Formats a RegisterData object into a list for DataTables."""
+        return [
+            row.id,
+            row.timestamp,
+            row.register1,
+            row.register2,
+            row.register3,
+            row.register4,
+            row.register5,
+            row.register6,
+            row.register7,
+            row.register8,
+            row.register9,
+            row.register10,
+            row.register11,
         ]
-        order_column_name = columns[order_column]
 
-        query = select(RegisterData)
-        total_records_query = select(func.count(RegisterData.id))
+    formatted_data: List[List[Any]] = [format_row(row) for row in data]
 
-        if search:
-            try:
-                search_value = float(search)  # Convert search to float
-                query = query.filter(RegisterData.register1 == search_value)
-                total_records_query = total_records_query.filter(RegisterData.register1 == search_value)
-            except ValueError:
-                print(f"Invalid search term: {search}")
-                return JSONResponse({"draw": draw, "recordsTotal": 0, "recordsFiltered": 0, "data": []})
+    # 8. Construct and Return Response
+    response: Dict[str, Any] = {
+        "draw": draw,
+        "recordsTotal": total_records,
+        "recordsFiltered": total_records,  # Correct: recordsFiltered = recordsTotal after filtering
+        "data": formatted_data,
+    }
+    return JSONResponse(response)
 
-        # Apply sorting
-        order_by_clause = getattr(RegisterData, order_column_name)
-        if order_dir == "desc":
-            order_by_clause = order_by_clause.desc()
-        query = query.order_by(order_by_clause)
-
-        # Get total records *after* applying filter
-        total_records = await session.execute(total_records_query)
-        total_records = total_records.scalar_one()
-
-        # Apply limit and offset *after* getting the total count
-        filtered_result = await session.execute(query.offset(start).limit(length))
-        filtered_data = filtered_result.scalars().all()
-
-        data = [
-            [getattr(row, col) for col in columns] for row in filtered_data
-        ]
-
-        return JSONResponse(
-            {
-                "draw": draw,
-                "recordsTotal": total_records,
-                "recordsFiltered": total_records,
-                "data": data,
-            }
-        )
 
 
 async def main():

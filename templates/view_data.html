@@ -87,13 +87,17 @@
                 <th>Project Number</th>
                 <th colspan="2" style="text-align: right;">20125620</th>
                 <th>Set RPM</th>
-                <th colspan="2" id="batch_rpm">{{ data[0].register10 if data else "" }}</th>
+                <th colspan="2" id="batch_rpm">
+                    {{ data[0].register10 if data and data|length > 0 else "" }}
+                </th>
             </tr>
             <tr>
                 <th>Serial Number</th>
                 <th colspan="2" style="text-align: right;">IB24-1367</th>
                 <th>Set Time</th>
-                <th colspan="2" id="batch_time">{{ data[0].register8 if data else "" }}</th>
+                <th colspan="2" id="batch_time">
+                    {{ data[0].register8 if data and data|length > 0 else "" }}
+                </th>
             </tr>
             <tr>
                 <th rowspan="2" class="text-center">SL.NO</th>
@@ -134,6 +138,7 @@
             {% endfor %}
             </tbody>
         </table>
+
     </div>
 </div>
 
